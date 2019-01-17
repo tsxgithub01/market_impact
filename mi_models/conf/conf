@@ -1,0 +1,58 @@
+[DEFAULT]
+a4 = 1.00
+
+[constants]
+no_dash_datetime_format = %%Y%%m%%d %%H:%%M:%%S
+wd_datetime_format = %%Y-%%m-%%d %%H:%%M:%%S
+
+[defaults]
+numerical_default = 0.0
+
+[ml_clf_model]
+max_samples = 0.5
+max_features = 0.5
+n_estimators = 50
+learning_rate = 1.0
+max_depth = 1
+random_state = 0
+maxdepth = 10
+min_samples_leaf = 0.05
+class_weight = balanced
+criterion = entropy
+train_sample = 0.8
+
+[ml_reg_model]
+loss = ls
+learning_rate = 0.1
+n_estimators = 100
+min_samples_split = 2
+min_samples_leaf = 1
+max_depth = 3
+init = None
+random_state = None
+max_features = None
+alpha = 0.9
+verbose = 0
+max_leaf_nodes = None
+warm_start = False
+cv = 10
+
+[dl_reg_model]
+units = 1
+input_dim = 1
+loss = mse
+activation = tanh
+hidden_units = 10
+learning_rate = 0.3
+optimizer = sgd
+
+[market_impact]
+features = X,VOLUME_TIME,NYU_PERM,NYU_TMP,ADV,SIGMA,LOG_SIGMA,Q,VT,P0,VWAP,START_TIME,END_TIME
+alpha = 0.726
+beta = 0.511
+tmp = 15.0
+train_sample = 0.8
+phi = 0.0104
+sigma = 0.0163
+
+
