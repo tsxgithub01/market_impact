@@ -27,7 +27,7 @@ from ..utils.plot_utils import plot_2D
 
 config = get_config()
 
-logger = Logger('log.txt', 'INFO', __name__).get_log()
+logger = Logger('log.txt', 'DEBUG', __name__).get_log()
 
 
 class MIModel(object):
