@@ -18,9 +18,18 @@ if __name__ == '__main__':
     mi = MIModel(db_config, file_name)
     train_codes = [('300182', 'XSHE'), ('002001', 'XSHE'), ('603608', 'XSHG')]
     train_codes = [('300182', 'XSHE')]
+    results = []
     for sec_code, exchange in train_codes:
-        mi.train(sec_code=sec_code, exchange=exchange, start_date='20180815', end_date='20181018',
-                 trained_intervals=[60])
+        ret = mi.train(sec_code=sec_code, exchange=exchange, start_date='20180815', end_date='20181018',
+                 model_name='istar_opt',
+                 trained_intervals=[60,90])
+        for min, score in ret.items():
+            results.append([min, score])
+        print('returned score', ret)
+    with open('training_results', 'w') as outfile:
+        for item in results:
+            print(item)
+            outfile.write(str(item))
     print(mi.load_model(file_name))
 
     for sec_code, exchange in train_codes:

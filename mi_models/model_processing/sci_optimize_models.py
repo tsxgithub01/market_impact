@@ -3,9 +3,11 @@
 # @author    : yuxiaoqi@cmschina.com.cn
 # @file      : sci_optimize_models.py
 
-
-from model_processing.models import Model
+import os
+import json
+from ..model_processing.models import Model
 from utils.utils import get_config
+from utils.utils import get_parent_dir
 from scipy.optimize import curve_fit
 import numpy as np
 
@@ -13,7 +15,7 @@ config = get_config()
 
 
 class Optimize_Model(Model):
-    def __init__(self, model_name='istar'):
+    def __init__(self, model_name='istar_opt'):
         self.model_name = model_name
         self._popt = None
         self._pcov = None
@@ -36,7 +38,10 @@ class Optimize_Model(Model):
         return mi
 
     def build_model(self, **kwargs):
-        pass
+        popt = kwargs.get('popt')
+        pcov = kwargs.get('pcov')
+        self._popt = popt
+        self._pcov = pcov
 
     def train_model(self, train_X=[], train_Y=[], **kwargs):
         '''
@@ -46,32 +51,50 @@ class Optimize_Model(Model):
         :param kwargs:
         :return:
         '''
-        lb = kwargs.get('lb') or -np.inf
-        up = kwargs.get('up') or np.inf
-        method = kwargs.get('method') or 'lm'
+        lb = kwargs.get('lb') if 'lb' in kwargs else  -np.inf
+        up = kwargs.get('up') if 'ub' in kwargs else np.inf
+        method = kwargs.get('method') or 'trf'
         popt, pcov = curve_fit(self._istar_cal, train_X, train_Y, check_finite=kwargs.get('check_finite'),
                                bounds=[lb, up], method=method)
         self._popt = popt
         self._pcov = pcov
 
-    def eval_model(self, y_true, y_pred, metrics):
-        '''
-
-        :param y_true:
-        :param y_pred:
-        :param metrics: []
-        :return:
-        '''
-        pass
-
     def output_model(self):
-        pass
+        return self._popt, self._pcov
+
+    def predict(self, input_X):
+        if self.model_name == 'istar_opt':
+            if self._popt is None:
+                raise ValueError('Model params for itar is missing, please run train_model first')
+        a1, a2, a3, a4, b1 = self._popt
+        return self._istar_cal(input_X, a1, a2, a3, a4, b1)
+
+    def save_model(self, model_name):
+        model_path = os.path.join(get_parent_dir(), 'data', 'models', '{0}.json'.format(model_name))
+        # p =  '{0}/data/models/{1}.m'.format(config['constants']['root'], model_path)
+        # TODO remove hardcode
+        # model_path = 'E:/pycharm/algo_trading/quant_models/quant_models/data/models/{0}.json'.format(model_name)
+        _payload = {'model_name': model_name, 'popt': self._popt.tolist(), 'pcov': self._pcov.tolist()}
+        with open(model_path, 'w') as outfile:
+            j_data = json.dumps(_payload)
+            outfile.write(j_data)
+
+    def load_model(self, model_name):
+        # TODO remove hardcode
+        model_path = os.path.join(get_parent_dir(), 'data', 'models', '{0}.json'.format(model_name))
+        # # p = '{0}models/{1}.m'.format(config['constants']['root'], model_name)
+        # model_path = 'E:/pycharm/algo_trading/quant_models/quant_models/data/models/{0}.json'.format(model_name)
+        with open(model_path) as infile:
+            contents = infile.read()
+            return json.loads(contents)
+
 
 if __name__ == '__main__':
     m = Optimize_Model()
     import numpy as np
-    x_data = np.random.random(size=(10,4))
-    y_data = m._istar_cal(x_data, 0.5, 0.5, 0.5, 0.5,0.8)
+
+    x_data = np.random.random(size=(10, 4))
+    y_data = m._istar_cal(x_data, 0.5, 0.5, 0.5, 0.5, 0.8)
     m.train_model(x_data, y_data, lb=0.0, up=np.inf, method='trf')
     print(m._pcov)
     print(m._popt)

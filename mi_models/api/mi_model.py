@@ -23,6 +23,7 @@ from ..utils.decorators import timeit
 from ..utils.utils import get_parent_dir
 from ..model_processing.pipeline import num_pipeline
 from ..model_processing.ml_reg_models import Ml_Reg_Model
+from ..model_processing.sci_optimize_models import Optimize_Model
 from ..utils.plot_utils import plot_2D
 
 config = get_config()
@@ -39,20 +40,22 @@ class MIModel(object):
         :param file_name:模型文件路径，需要加载或生成的文件路径
         """
         self._oracle = OracleHelper(db_config)
-        self.features = ['LOG_SIGMA', 'LOG_Q_ADV', 'POV', 'P0', 'VWAP']
+        self.features = ['LOG_SIGMA', 'LOG_Q_ADV', 'POV', 'P0', 'VWAP', 'SIGMA', 'ADV', 'Q']
         # self.features = ['X', 'VOLUME_TIME', 'NYU_PERM', 'NYU_TMP', 'ADV', 'SIGMA', 'LOG_SIGMA', 'VT', 'P0', 'VWAP',
         #                  'start_time', 'end_time']
         self._parent_dir = get_parent_dir()
         self.file_name = file_name
         self._params = dict()
 
-    def train(self, sec_code='', exchange='', start_date='', end_date='', trained_intervals=[60, 90, 120]):
+    def train(self, sec_code='', exchange='', start_date='', end_date='', model_name='',
+              trained_intervals=[60, 90, 120]):
         '''
         训练指定个股的市场冲击模型
         :param sec_code:证券代码
         :param exchange:市场代码
         :param start_date:训练开始日期，如：'20180103'
         :param end_date: 训练结束日期， 如：'20180901'
+        :param model_name:训练的模型，如： 'linear_nnls'
         :return: 不同分钟级别的训练分数结果，如： {60:{'mse':0.1, 'r2_score': 0.5}}
         '''
 
@@ -65,14 +68,23 @@ class MIModel(object):
             'Start train for sec_code: {0} with intervals:{1} from {2} to {3}'.format(sec_code, trained_intervals,
                                                                                       start_date, end_date))
         for min in trained_intervals:
-            best_score = 0.0
+            best_score = -np.inf
             self.gen_features(sec_code=sec_code, exchange=exchange, start_date=start_date, end_date=end_date,
-                              features=['LOG_SIGMA', 'LOG_Q_ADV', 'POV', 'P0', 'VWAP'], interval_mins=min)
-            ret_score, ret_params = self.train_with_grid_search(sec_code=sec_code,
-                                                                features=['LOG_SIGMA', 'LOG_Q_ADV'], ajusted_mi=True,
-                                                                search_params=searched_params,
-                                                                model_name='linear_nnls',
-                                                                file_name=self.file_name)
+                              features=self.features,
+                              interval_mins=min)
+            if model_name == 'linear_nnls':
+                ret_score, ret_params = self._train_with_grid_search(sec_code=sec_code,
+                                                                     features=['LOG_SIGMA', 'LOG_Q_ADV'],
+                                                                     ajusted_mi=True,
+                                                                     search_params=searched_params,
+                                                                     model_name=model_name,
+                                                                     file_name=self.file_name)
+            elif model_name == 'istar_opt':
+                ret_score, ret_params = self._train_with_istar_opt(sec_code=sec_code, model_name=model_name,
+                                                                   features=['Q', 'ADV', 'POV', 'SIGMA'],
+                                                                   file_name=self.file_name, opt_method='trf', lb=0.0,
+                                                                   ub=np.inf)
+
             logger.debug(
                 'train result for sec_code {0} for interval_mins {1} from {2} to {3}: {4} '.format(sec_code, min,
                                                                                                    start_date,
@@ -86,7 +98,7 @@ class MIModel(object):
             if ret_score.get('r2_score') > best_score:
                 self.save_model(file_name=self.file_name, sec_code=sec_code, params=ret_params)
                 best_score = ret_score.get('r2_score')
-            ret.update({min: ret_score})
+            ret.update({min: best_score})
             gc.collect()
             logger.info('Done train for sec_code: {0} with intervals:{1} from {2} to {3}'.format(sec_code,
                                                                                                  trained_intervals,
@@ -312,9 +324,9 @@ class MIModel(object):
                                                                                            kwargs))
         return eval_model, ret_params
 
-    def train_with_grid_search(self, sec_code='', search_params={}, model_name='linear',
-                               features=['LOG_SIGMA', 'LOG_Q_ADV'],
-                               ajusted_mi=True, file_name=''):
+    def _train_with_grid_search(self, sec_code='', search_params={}, model_name='linear',
+                                features=['LOG_SIGMA', 'LOG_Q_ADV'],
+                                ajusted_mi=True, file_name=''):
         b1_params = search_params.get('b1') or [0.86]
         a4_params = search_params.get('a4') or [0.50]
         max_score = 0.0
@@ -341,3 +353,49 @@ class MIModel(object):
             'Done train_with_grid_search for sec_code:{0}, search_parms:{1}, model_name:{2}, features:{3}'.format(
                 sec_code, search_params, model_name, features))
         return ret_score, ret_param
+
+    def _train_with_istar_opt(self, sec_code='', model_name='istar_opt', features=['LOG_SIGMA', 'LOG_Q_ADV'],
+                              file_name='', opt_method='trf', lb=0.0, ub=np.inf):
+        logger.info(
+            'Start train_with_grid_search for sec_code:{0}, model_name:{1}, features:{2}, opt_method:{3}, lower_bound:{4}, upper_bound:{5}'.format(
+                sec_code, model_name, features, opt_method, lb, ub))
+        features = features or self.features
+        target_idx = [idx for idx, val in enumerate(self.features) if val in features]
+        ret_features = read_features(feature_name='{0}'.format(sec_code))
+        train_X = []
+        backup_features = copy.deepcopy(ret_features)
+        for item in ret_features:
+            flag = 0
+            for sub_item in item:
+                if not ('nan' in sub_item):
+                    flag = 1
+            if flag == 0:
+                backup_features.remove(item)
+                continue
+            train_X.append([format_float(item[idx]) for idx in target_idx])
+
+        train_X = num_pipeline.fit_transform(train_X)
+        train_Y = [get_market_impact_label(format_float(item[-2]), format_float(item[-1])) for item in
+                   backup_features]
+        # _sgn = lambda x: -1 if x < 0 else 1
+        model = Optimize_Model(model_name=model_name)
+        model.build_model()
+        model_path = 'models_{0}_{1}_{2}'.format(model_name, sec_code, get_hash_key(features))
+        # if fine_grained:
+        #     model.best_estimate(train_X, train_Y)
+        #     model.build_model()
+        #     logger.debug(model._best_estimate)
+
+        tmp_Y = [0.0 if item != item else item for item in train_Y]
+        mean_y = sum(tmp_Y) / len(tmp_Y)
+        train_Y = [mean_y if item != item else item for item in train_Y]
+        ret = model.train_model(train_X, train_Y, lb=lb, up=ub, method=opt_method)
+        model.save_model(model_path)
+        popt, pcov = model.output_model()
+        y_predict = model.predict(train_X)
+        eval_model = model.eval_model(train_Y, y_predict, ['mse', 'r2_score'])
+        logger.debug(eval_model)
+        ret_params = {}
+        param_keys = ['a1', 'a2', 'a3', 'a4', 'b1']
+        ret_params = dict(zip(param_keys, popt))
+        return eval_model, ret_params

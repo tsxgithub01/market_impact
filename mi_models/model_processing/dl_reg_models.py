@@ -13,7 +13,8 @@ from keras.optimizers import SGD
 config = get_config()
 
 
-class Dl_Reg_Model(Model):
+
+class Dl_Reg_Model_Keras(Model):
     def __init__(self, model_name='linear'):
         self.model_name = model_name
         learning_rate = float(config['dl_reg_model']['learning_rate']) or 0.1

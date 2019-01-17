@@ -116,3 +116,7 @@ def get_parent_dir(file=None):
     curr_path = os.path.abspath(_file)
     parent_path = os.path.abspath(os.path.dirname(curr_path) + os.path.sep)
     return os.path.dirname(parent_path)
+
+
+if __name__ == '__main__':
+    print(get_parent_dir())
