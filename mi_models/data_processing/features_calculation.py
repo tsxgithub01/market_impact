@@ -6,6 +6,7 @@
 import numpy as np
 import math
 import os
+from collections import defaultdict
 from ..utils.utils import list_files
 from ..utils.utils import get_config
 from ..data_processing.preprocessing import mock_datetimes
@@ -211,6 +212,7 @@ def get_market_impact_features(features=[], sec_codes=[], sec_code_to_order_ids=
         filtered = True
     else:
         filtered = False
+    # features.extend(['start_time', 'end_time'])
     cal_features = [f for f in features if
                     f not in ['ADV', 'SIGMA', 'X', 'Q', 'VWAP', 'P0', 'VT', 'start_time', 'end_time']]
     cnt = 0
@@ -223,7 +225,7 @@ def get_market_impact_features(features=[], sec_codes=[], sec_code_to_order_ids=
                                                                                            order_qty, features, db_obj))
     for sec_code in sec_codes:
         cnt += 1
-        ret_features = []
+        ret_features = defaultdict(list)
         order_ids = sec_code_to_order_ids.get(sec_code)
         mkt = Market()
         mkt.sec_code = sec_code
@@ -271,7 +273,10 @@ def get_market_impact_features(features=[], sec_codes=[], sec_code_to_order_ids=
                 continue
             curr_row = get_cal_features(curr_row, cal_features)
             logger.debug("calculate features returned :{0}".format(curr_row))
-            ret_features.append([curr_row.get(f.strip('\n')) for f in features])
+            start_time = curr_row.get('start_time')
+            sub_path = start_time.split(' ')[0][:6]
+            ret_features[sub_path].append([curr_row.get(f.strip('\n')) for f in features])
+            # ret_features.append([curr_row.get(f.strip('\n')) for f in features])
             logger.debug("calculate features returned after formatting:{0}".format(curr_row))
         features_by_sec_code.update({sec_code: ret_features})
     logger.info("Done get_market_impact_features for sec_code:{0},exchange:{1} from {2} to {3} with interval:{4},"
@@ -286,9 +291,13 @@ def get_market_impact_features(features=[], sec_codes=[], sec_code_to_order_ids=
 
 
 def save_features(payload=[], path='', key_type=''):
-    feature_path = path
-    logger.info('save_features to file:{0}'.format(feature_path))
-    with open(feature_path, 'w') as f:
+    # feature_path = path
+    base_dir, file_name = os.path.split(path)
+    if not os.path.isdir(base_dir):
+        logger.debug('Feature directory does not exist, create a new directory:{0}'.format(base_dir))
+        os.mkdir(base_dir)
+    logger.info('save_features to file:{0}'.format(path))
+    with open(path, 'w') as f:
         for row in payload:
             if isinstance(row, dict):
                 key = row.pop(key_type)
@@ -309,11 +318,15 @@ def save_features(payload=[], path='', key_type=''):
 
 def read_features(feature_name=None):
     feature_path = os.path.join(get_parent_dir(), 'data', 'features', feature_name)
-    logger.info("read_features from file:{0}".format(feature_name))
+    logger.info("read features for sec_code:{0}".format(feature_name))
     files = list_files(abs_path=feature_path)
     ret_lines = []
+    n_files = len(files)
+    cnt = 0
     for f in files:
+        cnt += 1
         with open(f, 'r') as fr:
+            logger.info("read features from file:{0}, completed:{1} out of {2}".format(f, cnt, n_files))
             lines = fr.readlines()
             row = [line.strip('\n').split('\t') for line in lines]
             flag = False

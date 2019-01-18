@@ -69,14 +69,14 @@ class Model(object):
         model_path = os.path.join(get_parent_dir(), 'data','models', model_name)
         # p =  '{0}/data/models/{1}.m'.format(config['constants']['root'], model_path)
         #TODO remove hardcode
-        model_path = 'E:/pycharm/algo_trading/quant_models/quant_models/data/models/{0}'.format(model_name)
+        # model_path = 'E:/pycharm/algo_trading/quant_models/quant_models/data/models/{0}'.format(model_name)
         joblib.dump(self.model, model_path)
 
     def load_model(self, model_name):
         #TODO remove hardcode
-        model_path = os.path.join(get_parent_dir(), 'data', 'models', '{0}.m'.format(model_name))
+        model_path = os.path.join(get_parent_dir(), 'data', 'models', '{0}'.format(model_name))
         # p = '{0}models/{1}.m'.format(config['constants']['root'], model_name)
-        model_path = 'E:/pycharm/algo_trading/quant_models/quant_models/data/models/{0}'.format(model_name)
+        # model_path = 'E:/pycharm/algo_trading/quant_models/quant_models/data/models/{0}'.format(model_name)
         self.model = joblib.load(model_path)
 
     def train_features(self, train_X, train_Y, predict=True, threshold=0.15):

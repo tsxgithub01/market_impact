@@ -51,7 +51,7 @@ def get_prev_trading_date(curr_date=''):
     return list(set([item[12].strftime('%Y%m%d') for item in rows]))
 
 
-def get_all_month_end_dates(start_date='', end_date=''):
+def get_all_month_start_end_dates(start_date='', end_date=''):
     '''
     format for start_date and end_date: 'yyyymmdd'
     :param start_date:
@@ -59,7 +59,7 @@ def get_all_month_end_dates(start_date='', end_date=''):
     :return: list of trading dates, with format 'yyyydddd'
     '''
     rows, cols = get_dates_statics(start_date, end_date)
-    return list(set([item[7].strftime('%Y%m%d') for item in rows]))
+    return list(set([(item[6].strftime('%Y%m%d'), item[7].strftime('%Y%m%d') ) for item in rows]))
 
 
 def get_all_quarter_end_dates(start_date='', end_date=''):
@@ -90,4 +90,8 @@ def get_all_year_end_dates(start_date='', end_date=''):
 #         end_date = datetime_delta(dt=curr_date, format='%Y-%m-%d', days=31, output_format='%Y-%m-%d')
 #         dates = get_all_trading_dates(start_date, end_date)
 #         return curr_date in dates
+
+if __name__ == '__main__':
+    print(get_all_month_start_end_dates('20180630','20190110'))
+
 

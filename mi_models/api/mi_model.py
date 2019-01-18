@@ -21,6 +21,7 @@ from ..utils.utils import format_float
 from ..utils.utils import get_hash_key
 from ..utils.decorators import timeit
 from ..utils.utils import get_parent_dir
+from ..utils.date_utils import get_all_month_start_end_dates
 from ..model_processing.pipeline import num_pipeline
 from ..model_processing.ml_reg_models import Ml_Reg_Model
 from ..model_processing.sci_optimize_models import Optimize_Model
@@ -69,9 +70,11 @@ class MIModel(object):
                                                                                       start_date, end_date))
         for min in trained_intervals:
             best_score = -np.inf
-            self.gen_features(sec_code=sec_code, exchange=exchange, start_date=start_date, end_date=end_date,
-                              features=self.features,
-                              interval_mins=min)
+            split_months = get_all_month_start_end_dates(start_date, end_date)
+            for sd, ed in split_months:
+                self.gen_features(sec_code=sec_code, exchange=exchange, start_date=sd, end_date=ed,
+                                  features=self.features,
+                                  interval_mins=min)
             if model_name == 'linear_nnls':
                 ret_score, ret_params = self._train_with_grid_search(sec_code=sec_code,
                                                                      features=['LOG_SIGMA', 'LOG_Q_ADV'],
@@ -89,12 +92,12 @@ class MIModel(object):
                 'train result for sec_code {0} for interval_mins {1} from {2} to {3}: {4} '.format(sec_code, min,
                                                                                                    start_date,
                                                                                                    end_date, ret_score))
-            params = get_config(overwrite_config_path=self.file_name)
-            logger.debug('** a1: {0}, a2: {1},a3: {2}, a4: {3}, b1: {4}**'.format(params[sec_code]['a1'],
-                                                                                  params[sec_code]['a2'],
-                                                                                  params[sec_code]['a3'],
-                                                                                  params[sec_code]['a4'],
-                                                                                  params[sec_code]['b1']))
+            # params = get_config(overwrite_config_path=self.file_name)
+            # logger.debug('** a1: {0}, a2: {1},a3: {2}, a4: {3}, b1: {4}**'.format(params[sec_code]['a1'],
+            #                                                                       params[sec_code]['a2'],
+            #                                                                       params[sec_code]['a3'],
+            #                                                                       params[sec_code]['a4'],
+            #                                                                       params[sec_code]['b1']))
             if ret_score.get('r2_score') > best_score:
                 self.save_model(file_name=self.file_name, sec_code=sec_code, params=ret_params)
                 best_score = ret_score.get('r2_score')
@@ -210,8 +213,9 @@ class MIModel(object):
                                                   order_price=order_price)
 
         for sec_code, features in ret_features.items():
-            path = os.path.join(self._parent_dir, 'data', 'features', '{0}'.format(sec_code))
-            save_features(features, path=path)
+            for yymm, rows in features.items():
+                path = os.path.join(self._parent_dir, 'data', 'features', '{0}'.format(sec_code),'{0}'.format(yymm))
+                save_features(rows, path=path)
         logger.info(
             'Done gen_features for sec_code:{0} and exchange: {1} from {2} to {3} for  interval {4}'.format(
                 sec_code, exchange, start_date, end_date, interval_mins))
@@ -265,6 +269,7 @@ class MIModel(object):
         ret_features = read_features(feature_name='{0}'.format(sec_code))
         init_a4 = kwargs.get('a4') or self._params[sec_code]['a4'] or 1.0
         init_b1 = kwargs.get('b1')
+        train_sample = kwargs.get('train_sample') or 0.8
 
         train_X = []
         backup_features = copy.deepcopy(ret_features)
@@ -299,13 +304,18 @@ class MIModel(object):
             logger.debug(model._best_estimate)
 
         tmp_Y = [0.0 if item != item else item for item in train_Y]
+        #TODO to improved
         mean_y = sum(tmp_Y) / len(tmp_Y)
         train_Y = [mean_y if item != item else item for item in train_Y]
-        ret = model.train_model(train_X, train_Y)  # not leave out test samples
+        n_train = int(len(train_Y)*train_sample)
+        ret = model.train_model(train_X[:n_train], train_Y[:n_train])  # not leave out test samples
         model.save_model(model_path)
         model_param = model.output_model()
         y_predict = model.predict(train_X)
-        eval_model = model.eval_model(train_Y, y_predict, ['mse', 'r2_score'])
+        eval_model = model.eval_model(train_Y[n_train:], y_predict[n_train:], ['mse', 'r2_score'])
+        # import matplotlib.pyplot as plt
+        # plt.plot(range(len(train_Y)), train_Y, y_predict)
+        # plt.show()
         logger.debug(eval_model)
         ret_params = {}
         try:

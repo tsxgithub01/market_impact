@@ -230,7 +230,7 @@ class Market(object):
         except Exception as ex:
             logger.debug(
                 'Fail in get_avg_price for {0} divide {1} with error :{2}'.format(sum_divider, sum_divided, ex))
-            avg_p = np.nan
+            return np.nan
         return avg_p
 
     def get_start_end_price(self, start_datetime='', end_datetime=''):
