@@ -24,12 +24,12 @@ if __name__ == '__main__':
     results = []
     for sec_code, exchange in train_codes:
         ret = mi.train(sec_code=sec_code, exchange=exchange, start_date='20150101', end_date='20161231',
-                       model_name='linear_nnls',
+                       model_name='istar_opt',
                        trained_intervals=[60, 90, 120])
         for min, score in ret.items():
             results.append([sec_code, min, score])
         print('returned score', ret)
-    with open('training_results_1', 'w') as outfile:
+    with open('training_results_300_opt', 'w') as outfile:
         for item in results:
             print(item)
             outfile.write(str(item))

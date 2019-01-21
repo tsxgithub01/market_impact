@@ -275,6 +275,8 @@ def get_market_impact_features(features=[], sec_codes=[], sec_code_to_order_ids=
             logger.debug("calculate features returned :{0}".format(curr_row))
             start_time = curr_row.get('start_time')
             sub_path = start_time.split(' ')[0][:6]
+            features.append('P0')
+            features.append('VWAP')
             ret_features[sub_path].append([curr_row.get(f.strip('\n')) for f in features])
             # ret_features.append([curr_row.get(f.strip('\n')) for f in features])
             logger.debug("calculate features returned after formatting:{0}".format(curr_row))
