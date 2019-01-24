@@ -20,7 +20,7 @@ if __name__ == '__main__':
     file_name = os.path.join(get_parent_dir(), 'conf', 'istar_params')
     mi = MIModel(db_config, file_name)
     train_codes = [('300182', 'XSHE'), ('002001', 'XSHE'), ('603608', 'XSHG')]
-    train_codes = [('000300', 'XSHG')]
+    train_codes = [('300182', 'XSHE')]
     results = []
     for sec_code, exchange in train_codes:
         ret = mi.train(sec_code=sec_code, exchange=exchange, start_date='20150101', end_date='20161231',

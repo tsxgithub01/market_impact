@@ -22,7 +22,8 @@ from sklearn.externals.joblib.parallel import Parallel
 from sklearn.externals.joblib.parallel import delayed
 from scipy.optimize import nnls
 from scipy.optimize import lsq_linear
-from quant_models.utils.utils import get_parent_dir
+# from quant_models.utils.utils import get_parent_dir
+from ..utils.utils import get_parent_dir
 
 # from scipy.sparse.linalg.isolve.lsqr import sparse_lsqr
 

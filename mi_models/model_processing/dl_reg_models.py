@@ -13,7 +13,6 @@ from keras.optimizers import SGD
 config = get_config()
 
 
-
 class Dl_Reg_Model_Keras(Model):
     def __init__(self, model_name='linear'):
         self.model_name = model_name
