@@ -20,7 +20,7 @@ def dense_to_one_hot(labels_dense, num_classes):
 
 
 class DataSet(object):
-    def __init__(self, images, labels):
+    def __init__(self, images, labels, acc_input):
         assert images.shape[0] == labels.shape[0], (
                 "images.shape: %s labels.shape: %s" % (images.shape,
                                                        labels.shape))
@@ -28,6 +28,7 @@ class DataSet(object):
         images = images.astype(np.float32)
         self._images = images
         self._labels = labels
+        self._acc_inputs = acc_input
         self._epochs_completed = 0
         self._index_in_epoch = self._num_examples
 
@@ -72,7 +73,7 @@ class DataSet(object):
             self._index_in_epoch = batch_size
             assert batch_size <= self._num_examples
         end = self._index_in_epoch
-        return self._images[start:end], self._labels[start:end]
+        return self._images[start:end], self._labels[start:end], self._acc_inputs[start:end]
 
 
 if __name__ == '__main__':

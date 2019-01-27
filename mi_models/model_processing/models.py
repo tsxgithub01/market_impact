@@ -25,7 +25,6 @@ from scipy.optimize import lsq_linear
 # from quant_models.utils.utils import get_parent_dir
 from ..utils.utils import get_parent_dir
 
-# from scipy.sparse.linalg.isolve.lsqr import sparse_lsqr
 
 logger = Logger('log.txt', 'INFO', __name__).get_log()
 

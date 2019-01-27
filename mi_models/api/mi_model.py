@@ -87,6 +87,9 @@ class MIModel(object):
                                                                    features=['Q', 'ADV', 'POV', 'SIGMA'],
                                                                    file_name=self.file_name, opt_method='trf', lb=0.0,
                                                                    ub=np.inf)
+            elif model_name == 'ann':
+                # TODO to be added
+                pass
 
             logger.debug(
                 'train result for sec_code {0} for interval_mins {1} from {2} to {3}: {4} '.format(sec_code, min,
@@ -214,7 +217,7 @@ class MIModel(object):
 
         for sec_code, features in ret_features.items():
             for yymm, rows in features.items():
-                path = os.path.join(self._parent_dir, 'data', 'features', '{0}'.format(sec_code),'{0}'.format(yymm))
+                path = os.path.join(self._parent_dir, 'data', 'features', '{0}'.format(sec_code), '{0}'.format(yymm))
                 save_features(rows, path=path)
         logger.info(
             'Done gen_features for sec_code:{0} and exchange: {1} from {2} to {3} for  interval {4}'.format(
@@ -304,11 +307,11 @@ class MIModel(object):
             logger.debug(model._best_estimate)
 
         tmp_Y = [0.0 if item != item else item for item in train_Y]
-        #TODO to improved
+        # TODO to improved
         mean_y = sum(tmp_Y) / len(tmp_Y)
         train_Y = [mean_y if item != item else item for item in train_Y]
-        n_train = int(len(train_Y)*train_sample)
-        ret = model.train_model(train_X[:n_train], train_Y[:n_train])  # not leave out test samples
+        n_train = int(len(train_Y) * train_sample)
+        model.train_model(train_X[:n_train], train_Y[:n_train])  # not leave out test samples
         model.save_model(model_path)
         model_param = model.output_model()
         y_predict = model.predict(train_X)
@@ -387,15 +390,9 @@ class MIModel(object):
         train_X = num_pipeline.fit_transform(train_X)
         train_Y = [get_market_impact_label(format_float(item[-2]), format_float(item[-1])) for item in
                    backup_features]
-        # _sgn = lambda x: -1 if x < 0 else 1
         model = Optimize_Model(model_name=model_name)
         model.build_model()
         model_path = 'models_{0}_{1}_{2}'.format(model_name, sec_code, get_hash_key(features))
-        # if fine_grained:
-        #     model.best_estimate(train_X, train_Y)
-        #     model.build_model()
-        #     logger.debug(model._best_estimate)
-
         tmp_Y = [0.0 if item != item else item for item in train_Y]
         mean_y = sum(tmp_Y) / len(tmp_Y)
         train_Y = [mean_y if item != item else item for item in train_Y]
@@ -409,3 +406,5 @@ class MIModel(object):
         param_keys = ['a1', 'a2', 'a3', 'a4', 'b1']
         ret_params = dict(zip(param_keys, popt))
         return eval_model, ret_params
+
+    # def _train_with_ann(self):

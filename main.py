@@ -20,11 +20,11 @@ if __name__ == '__main__':
     file_name = os.path.join(get_parent_dir(), 'conf', 'istar_params')
     mi = MIModel(db_config, file_name)
     train_codes = [('300182', 'XSHE'), ('002001', 'XSHE'), ('603608', 'XSHG')]
-    train_codes = [('300182', 'XSHE')]
+    train_codes = [('000300', 'XSHG')]
     results = []
     for sec_code, exchange in train_codes:
-        ret = mi.train(sec_code=sec_code, exchange=exchange, start_date='20150101', end_date='20161231',
-                       model_name='istar_opt',
+        ret = mi.train(sec_code=sec_code, exchange=exchange, start_date='20150101', end_date='20181231',
+                       model_name='linear_nnls',
                        trained_intervals=[60, 90, 120])
         for min, score in ret.items():
             results.append([sec_code, min, score])
