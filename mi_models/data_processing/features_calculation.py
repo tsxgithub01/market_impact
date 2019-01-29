@@ -321,7 +321,11 @@ def save_features(payload=[], path='', key_type=''):
 
 
 def read_features(feature_name=None):
-    feature_path = os.path.join(get_parent_dir(), 'data', 'features', feature_name)
+    feature_path = os.path.join(get_parent_dir(), 'data', 'features')
+    feature_name = [feature_name] if isinstance(feature_name, str) else feature_name
+    for item in feature_name:
+        feature_path = os.path.join(feature_path,item)
+    # feature_path = os.path.join(get_parent_dir(), 'data', 'features', feature_name)
     logger.info("read features for sec_code:{0}".format(feature_name))
     files = list_files(abs_path=feature_path)
     ret_lines = []

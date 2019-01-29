@@ -1,6 +1,7 @@
 import configparser
 import numpy as np
 import os
+import json
 import sys
 import hashlib
 import talib as ta
@@ -116,6 +117,20 @@ def get_parent_dir(file=None):
     curr_path = os.path.abspath(_file)
     parent_path = os.path.abspath(os.path.dirname(curr_path) + os.path.sep)
     return os.path.dirname(parent_path)
+
+
+def write_json_file(file_path='', data=None):
+    if not data:
+        return
+    with open(file_path, 'w') as outfile:
+        j_data = json.dumps(data)
+        outfile.write(j_data)
+
+
+def load_json_file(filepath=''):
+    with open(filepath) as infile:
+        contents = infile.read()
+        return json.loads(contents)
 
 
 if __name__ == '__main__':

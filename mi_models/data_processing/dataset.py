@@ -5,6 +5,7 @@
 
 import numpy as np
 
+
 def dense_to_one_hot(labels_dense, num_classes):
     '''
     Convert class labels from scalars to one-hot vectors.
@@ -17,6 +18,20 @@ def dense_to_one_hot(labels_dense, num_classes):
     labels_one_hot = np.zeros((num_labels, num_classes))
     labels_one_hot.flat[index_offset + labels_dense.ravel().astype(int)] = 1
     return labels_one_hot
+
+
+def split_train_val_dataset(train_X, train_Y, train_rate):
+    # n_train = int(len(train_X) * train_rate)
+    # n_val = int(len(train_X) * (1 - train_rate))
+    n_train = int(len(train_X) * train_rate)
+    train_idx = np.array(range(int(len(train_X) * train_rate)))
+    np.random.shuffle(train_idx)
+    val_idx = np.array(range(int(len(train_X) * (1 - train_rate))))
+    np.random.shuffle(val_idx)
+    # train_idx = np.random.shuffle(np.array(range(n_train)))
+    # val_idx = np.random.shuffle(np.array(range(n_val)))
+    return train_X[:n_train], train_Y[:n_train], train_X[n_train:], train_Y[n_train:]
+    # return train_X[train_idx], train_Y[train_idx], train_X[val_idx], train_Y[val_idx]
 
 
 class DataSet(object):
@@ -82,4 +97,5 @@ if __name__ == '__main__':
     d = DataSet(image, label)
     b = d.next_batch(30)
     import pprint
+
     pprint.pprint(b)

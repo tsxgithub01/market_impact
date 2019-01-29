@@ -5,31 +5,39 @@
 
 from mi_models.api.mi_model import MIModel
 from mi_models.utils.utils import get_parent_dir
+from mi_models.utils.utils import load_json_file
 from mi_models.logger import Logger
 import os
+import json
 import datetime
 
 logger = Logger('log.txt', 'INFO', __name__).get_log()
 
 if __name__ == '__main__':
-
-    db_config = {"user": "cust", "pwd": "admin123", "host": "172.253.32.132", "port": 1521, "dbname": "dbcenter",
-                 "mincached": 0, "maxcached": 1}
-    db_config = {"user": "cust", "pwd": "admin123", "host": "10.200.40.170", "port": 1521, "dbname": "clouddb",
-                 "mincached": 0, "maxcached": 1}
+    uat_db_config = {"user": "cust", "pwd": "admin123", "host": "172.253.32.132", "port": 1521, "dbname": "dbcenter",
+                     "mincached": 0, "maxcached": 1}
+    prod_db_config = {"user": "cust", "pwd": "admin123", "host": "10.200.40.170", "port": 1521, "dbname": "clouddb",
+                      "mincached": 0, "maxcached": 1}
+    start_date = '20150103'
+    end_date = '20181231'
     file_name = os.path.join(get_parent_dir(), 'conf', 'istar_params')
-    mi = MIModel(db_config, file_name)
-    train_codes = [('300182', 'XSHE'), ('002001', 'XSHE'), ('603608', 'XSHG')]
+    mi = MIModel(prod_db_config, file_name)
+    # train_codes = [('300182', 'XSHE'), ('002001', 'XSHE'), ('603608', 'XSHG')]
     train_codes = [('000300', 'XSHG')]
+    # train_sec_ids = load_json_file(os.path.join(get_parent_dir(), 'data', 'train_ids.json'))
+    # train_codes = [(item.split('.')[0], item.split('.')[1]) for item in train_sec_ids][:10]
     results = []
+
     for sec_code, exchange in train_codes:
-        ret = mi.train(sec_code=sec_code, exchange=exchange, start_date='20150101', end_date='20181231',
+        ret = mi.train(sec_code=sec_code, exchange=exchange, start_date=start_date, end_date=end_date,
                        model_name='linear_nnls',
-                       trained_intervals=[60, 90, 120])
-        for min, score in ret.items():
-            results.append([sec_code, min, score])
+                       trained_intervals=[30, 60, 90])
+        for min, val in ret.items():
+            score, mse = val
+            results.append([sec_code, min, mse, score])
         print('returned score', ret)
-    with open('training_results_300_opt', 'w') as outfile:
+
+    with open('training_results1_linear_{0}_{1}_{2}'.format(sec_code, start_date, end_date), 'w') as outfile:
         for item in results:
             print(item)
             outfile.write(str(item))

@@ -16,6 +16,7 @@ from ..data_processing.features_calculation import get_market_impact_label
 from ..data_processing.features_calculation import get_istart_label
 from ..data_processing.features_calculation import save_features
 from ..data_processing.features_calculation import read_features
+from ..data_processing.dataset import split_train_val_dataset
 from ..utils.utils import set_config
 from ..utils.utils import format_float
 from ..utils.utils import get_hash_key
@@ -41,7 +42,7 @@ class MIModel(object):
         :param file_name:模型文件路径，需要加载或生成的文件路径
         """
         self._oracle = OracleHelper(db_config)
-        self.features = ['LOG_SIGMA', 'LOG_Q_ADV', 'POV', 'P0', 'VWAP', 'SIGMA', 'ADV', 'Q']
+        self.features = ['LOG_SIGMA', 'LOG_Q_ADV', 'POV', 'SIGMA', 'ADV', 'Q']
         # self.features = ['X', 'VOLUME_TIME', 'NYU_PERM', 'NYU_TMP', 'ADV', 'SIGMA', 'LOG_SIGMA', 'VT', 'P0', 'VWAP',
         #                  'start_time', 'end_time']
         self._parent_dir = get_parent_dir()
@@ -61,7 +62,7 @@ class MIModel(object):
         '''
 
         ret = {}
-        searched_params = {'b1': list(np.linspace(0.7, 0.99, 10)), 'a4': list(np.linspace(0.5, 1.0, 10))}
+        searched_params = {'b1': list(np.linspace(0.5, 0.99, 10)), 'a4': list(np.linspace(0.5, 0.99, 10))}
         start_date = start_date or '20180103'
         end_date = end_date or '20180926'
         trained_intervals = trained_intervals or [60, 90, 120]
@@ -70,18 +71,25 @@ class MIModel(object):
                                                                                       start_date, end_date))
         for min in trained_intervals:
             best_score = -np.inf
+            best_mse = np.inf
             split_months = get_all_month_start_end_dates(start_date, end_date)
             for sd, ed in split_months:
-                self.gen_features(sec_code=sec_code, exchange=exchange, start_date=sd, end_date=ed,
-                                  features=self.features,
-                                  interval_mins=min)
+                hash_key = get_hash_key([sec_code, exchange, sd, ed, ','.join(self.features), str(min)])
+                files = os.listdir(os.path.join(get_parent_dir(), 'data', 'features', '{0}'.format(sec_code)))
+                if hash_key not in files:
+                    self.gen_features(sec_code=sec_code, exchange=exchange, start_date=sd, end_date=ed,
+                                      features=self.features,
+                                      interval_mins=min, file_name=hash_key)
+                else:
+                    logger.info('feature exist, skip')
             if model_name == 'linear_nnls':
                 ret_score, ret_params = self._train_with_grid_search(sec_code=sec_code,
                                                                      features=['LOG_SIGMA', 'LOG_Q_ADV'],
                                                                      ajusted_mi=True,
                                                                      search_params=searched_params,
                                                                      model_name=model_name,
-                                                                     file_name=self.file_name)
+                                                                     file_name=self.file_name,
+                                                                     inverval_mins=min)
             elif model_name == 'istar_opt':
                 ret_score, ret_params = self._train_with_istar_opt(sec_code=sec_code, model_name=model_name,
                                                                    features=['Q', 'ADV', 'POV', 'SIGMA'],
@@ -104,7 +112,8 @@ class MIModel(object):
             if ret_score.get('r2_score') > best_score:
                 self.save_model(file_name=self.file_name, sec_code=sec_code, params=ret_params)
                 best_score = ret_score.get('r2_score')
-            ret.update({min: best_score})
+                best_mse = ret_score.get('mse')
+            ret.update({min: (best_score, best_mse)})
             gc.collect()
             logger.info('Done train for sec_code: {0} with intervals:{1} from {2} to {3}'.format(sec_code,
                                                                                                  trained_intervals,
@@ -217,7 +226,9 @@ class MIModel(object):
 
         for sec_code, features in ret_features.items():
             for yymm, rows in features.items():
-                path = os.path.join(self._parent_dir, 'data', 'features', '{0}'.format(sec_code), '{0}'.format(yymm))
+                name = kwargs.get('file_name') or '{0}'.format(yymm)
+                path = os.path.join(self._parent_dir, 'data', 'features',
+                                    '{0}'.format(sec_code), '{0}'.format(interval_mins), '{0}'.format(name))
                 save_features(rows, path=path)
         logger.info(
             'Done gen_features for sec_code:{0} and exchange: {1} from {2} to {3} for  interval {4}'.format(
@@ -269,10 +280,10 @@ class MIModel(object):
         fine_grained = kwargs.get('fine_grained') or False
         features = kwargs.get('features') or self.features
         target_idx = [idx for idx, val in enumerate(self.features) if val in features]
-        ret_features = read_features(feature_name='{0}'.format(sec_code))
+        ret_features = read_features(feature_name=[sec_code, str( kwargs.get('inverval_mins'))])
         init_a4 = kwargs.get('a4') or self._params[sec_code]['a4'] or 1.0
         init_b1 = kwargs.get('b1')
-        train_sample = kwargs.get('train_sample') or 0.8
+        train_rate = kwargs.get('train_rate') or 0.8
 
         train_X = []
         backup_features = copy.deepcopy(ret_features)
@@ -305,21 +316,25 @@ class MIModel(object):
             model.best_estimate(train_X, train_Y)
             model.build_model()
             logger.debug(model._best_estimate)
+        train_Y = np.array(train_Y)
+        train_Y = np.nan_to_num(train_Y)
+        # tmp_Y = [0.0 if item != item else item for item in train_Y]
+        # # TODO to improved
+        # mean_y = sum(tmp_Y) / len(tmp_Y)
+        # train_Y = [mean_y if item != item else item for item in train_Y]
+        # n_train = int(len(train_Y) * train_sample)
 
-        tmp_Y = [0.0 if item != item else item for item in train_Y]
-        # TODO to improved
-        mean_y = sum(tmp_Y) / len(tmp_Y)
-        train_Y = [mean_y if item != item else item for item in train_Y]
-        n_train = int(len(train_Y) * train_sample)
-        model.train_model(train_X[:n_train], train_Y[:n_train])  # not leave out test samples
+        train_X, train_Y, val_X, val_Y = split_train_val_dataset(train_X, train_Y, train_rate)
+        model.train_model(train_X, train_Y)
         model.save_model(model_path)
         model_param = model.output_model()
-        y_predict = model.predict(train_X)
-        eval_model = model.eval_model(train_Y[n_train:], y_predict[n_train:], ['mse', 'r2_score'])
+        y_predict = model.predict(val_X)
+        eval_model = model.eval_model(val_Y, y_predict, ['mse', 'r2_score'])
         # import matplotlib.pyplot as plt
         # plt.plot(range(len(train_Y)), train_Y, y_predict)
         # plt.show()
-        logger.debug(eval_model)
+        logger.debug(
+            'results with train_sample:{0}, a4:{1}, b1:{2},ret:{3}'.format(train_rate, init_a4, init_b1, eval_model))
         ret_params = {}
         try:
             if istar_params == 'b':
@@ -339,7 +354,7 @@ class MIModel(object):
 
     def _train_with_grid_search(self, sec_code='', search_params={}, model_name='linear',
                                 features=['LOG_SIGMA', 'LOG_Q_ADV'],
-                                ajusted_mi=True, file_name=''):
+                                ajusted_mi=True, file_name='', inverval_mins=30):
         b1_params = search_params.get('b1') or [0.86]
         a4_params = search_params.get('a4') or [0.50]
         max_score = 0.0
@@ -353,14 +368,14 @@ class MIModel(object):
                 ret_score, ret_param = self.train_models(sec_code=sec_code, model_name=model_name, features=features,
                                                          ajusted_mi=ajusted_mi,
                                                          istar_params='all',
-                                                         a4=a4, b1=b1, file_name=file_name)
+                                                         a4=a4, b1=b1, file_name=file_name,inverval_mins=inverval_mins)
                 if ret_score.get('r2_score') > max_score:
                     best_b1 = b1
                     best_a4 = a4
         logger.debug('Best b1:{0} and best a4:{1}'.format(best_b1, best_a4))
         ret_score, ret_param = self.train_models(sec_code=sec_code, model_name=model_name, features=features,
                                                  ajusted_mi=ajusted_mi, istar_params='a',
-                                                 a4=best_a4, b1=best_b1, file_name=file_name)
+                                                 a4=best_a4, b1=best_b1, file_name=file_name,inverval_mins=inverval_mins)
         ret_param.update({'b1': best_b1, 'a4': best_a4})
         logger.debug(
             'Done train_with_grid_search for sec_code:{0}, search_parms:{1}, model_name:{2}, features:{3}'.format(
@@ -368,13 +383,13 @@ class MIModel(object):
         return ret_score, ret_param
 
     def _train_with_istar_opt(self, sec_code='', model_name='istar_opt', features=['LOG_SIGMA', 'LOG_Q_ADV'],
-                              file_name='', opt_method='trf', lb=0.0, ub=np.inf):
+                              file_name='', opt_method='trf', lb=0.0, ub=np.inf, inverval_mins=30):
         logger.info(
             'Start train_with_grid_search for sec_code:{0}, model_name:{1}, features:{2}, opt_method:{3}, lower_bound:{4}, upper_bound:{5}'.format(
                 sec_code, model_name, features, opt_method, lb, ub))
         features = features or self.features
         target_idx = [idx for idx, val in enumerate(self.features) if val in features]
-        ret_features = read_features(feature_name='{0}'.format(sec_code))
+        ret_features = read_features(feature_name=[sec_code, str( inverval_mins)])
         train_X = []
         backup_features = copy.deepcopy(ret_features)
         for item in ret_features:
@@ -407,4 +422,43 @@ class MIModel(object):
         ret_params = dict(zip(param_keys, popt))
         return eval_model, ret_params
 
-    # def _train_with_ann(self):
+    # def _train_with_ann(self, sec_code='', model_name='istar_opt', features=['LOG_SIGMA', 'LOG_Q_ADV'],
+    #                           file_name=''):
+    #     logger.info(
+    #         'Start train_with_grid_search for sec_code:{0}, model_name:{1}, features:{2}'.format(
+    #             sec_code, model_name, features))
+    #     features = features or self.features
+    #     target_idx = [idx for idx, val in enumerate(self.features) if val in features]
+    #     ret_features = read_features(feature_name='{0}'.format(sec_code))
+    #     train_X = []
+    #     backup_features = copy.deepcopy(ret_features)
+    #     for item in ret_features:
+    #         flag = 0
+    #         for sub_item in item:
+    #             if not ('nan' in sub_item):
+    #                 flag = 1
+    #         if flag == 0:
+    #             backup_features.remove(item)
+    #             continue
+    #         train_X.append([format_float(item[idx]) for idx in target_idx])
+    #
+    #     train_X = num_pipeline.fit_transform(train_X)
+    #     train_Y = [get_market_impact_label(format_float(item[-2]), format_float(item[-1])) for item in
+    #                backup_features]
+    #
+    #     model = Optimize_Model(model_name=model_name)
+    #     model.build_model()
+    #     model_path = 'models_{0}_{1}_{2}'.format(model_name, sec_code, get_hash_key(features))
+    #     tmp_Y = [0.0 if item != item else item for item in train_Y]
+    #     mean_y = sum(tmp_Y) / len(tmp_Y)
+    #     train_Y = [mean_y if item != item else item for item in train_Y]
+    #     ret = model.train_model(train_X, train_Y, lb=lb, up=ub, method=opt_method)
+    #     model.save_model(model_path)
+    #     popt, pcov = model.output_model()
+    #     y_predict = model.predict(train_X)
+    #     eval_model = model.eval_model(train_Y, y_predict, ['mse', 'r2_score'])
+    #     logger.debug(eval_model)
+    #     ret_params = {}
+    #     param_keys = ['a1', 'a2', 'a3', 'a4', 'b1']
+    #     ret_params = dict(zip(param_keys, popt))
+    #     return eval_model, ret_params

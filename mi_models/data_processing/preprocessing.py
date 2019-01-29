@@ -55,11 +55,14 @@ def _is_valid_interval(start_datetime='', end_datetime='', mkt=None, filtered=Tr
     d2, t2 = end_datetime.split(' ')
     if not mkt:
         return False
-    q = mkt.get_intraday_bs_volume(t1, t2).get(d1)
-    start_p, end_p = mkt.get_start_end_price(start_datetime, end_datetime)
-    avg_price = mkt.get_avg_price(start_datetime, end_datetime)
-    if q and start_p and avg_price and q > 0 and avg_price - start_p > 0:
-        return True
+    try:
+        q = mkt.get_intraday_bs_volume(t1, t2).get(d1)
+        start_p, end_p = mkt.get_start_end_price(start_datetime, end_datetime)
+        avg_price = mkt.get_avg_price(start_datetime, end_datetime)
+        if q and start_p and avg_price and q > 0 and avg_price - start_p > 0:
+            return True
+    except Exception as ex:
+        logger.warn('Fail to check the valid interval with error:{0}'.format(ex))
     return False
 
 
