@@ -75,7 +75,12 @@ class MIModel(object):
             split_months = get_all_month_start_end_dates(start_date, end_date)
             for sd, ed in split_months:
                 hash_key = get_hash_key([sec_code, exchange, sd, ed, ','.join(self.features), str(min)])
-                files = os.listdir(os.path.join(get_parent_dir(), 'data', 'features', '{0}'.format(sec_code)))
+                files = []
+                try:
+                    files = os.listdir(
+                        os.path.join(get_parent_dir(), 'data', 'features', '{0}'.format(sec_code), '{0}'.format(min)))
+                except Exception as ex:
+                    logger.info('Fail to list the files with error:{0}'.format(ex))
                 if hash_key not in files:
                     self.gen_features(sec_code=sec_code, exchange=exchange, start_date=sd, end_date=ed,
                                       features=self.features,
@@ -187,16 +192,20 @@ class MIModel(object):
                              float(self._params.get(sec_code).get('a2')), \
                              float(self._params.get(sec_code).get('a3')), \
                              float(self._params.get(sec_code).get('a4'))
-        for sec_code, feature_lst in ret_features.items():
-            for item in feature_lst:
-                q_adv, pov, sigma = item
-                i_star = a1 * math.pow(abs(q_adv), a2) * math.pow(sigma, a3)
-                tmp_impact = b1 * i_star * math.pow(abs(pov), a4) * _sgn(pov)
-                perm_impact = (1 - b1) * i_star * _sgn(pov)
-                logger.info(
-                    'Return temp impact:{0}, Perm impact:{1} for sec_code:{2}'.format(tmp_impact, perm_impact,
-                                                                                      sec_code))
-                ret.append((tmp_impact, perm_impact, tmp_impact + perm_impact, i_star))
+        for sec_code, val in ret_features.items():
+            for d, feature_lst in val.items():
+                for item in feature_lst:
+                    q_adv, pov, sigma = item[:3]
+                    i_star = a1 * math.pow(abs(q_adv), a2) * math.pow(sigma, a3)
+                    tmp_impact = b1 * i_star * math.pow(abs(pov), a4) * _sgn(pov)
+                    perm_impact = (1 - b1) * i_star * _sgn(pov)
+                    logger.debug(
+                        'q_adv:{0},pov:{1}, sigma:{2},i_star:{3},tmp:{4},perm:{5}'.format(q_adv, pov, sigma, i_star,
+                                                                                          tmp_impact, perm_impact))
+                    logger.info(
+                        'Return temp impact:{0}, Perm impact:{1} for sec_code:{2}'.format(tmp_impact, perm_impact,
+                                                                                          sec_code))
+                    ret.append((tmp_impact, perm_impact, tmp_impact + perm_impact, i_star))
         logger.info("Done predict with results:{0}".format(ret))
         return ret
 
@@ -280,7 +289,7 @@ class MIModel(object):
         fine_grained = kwargs.get('fine_grained') or False
         features = kwargs.get('features') or self.features
         target_idx = [idx for idx, val in enumerate(self.features) if val in features]
-        ret_features = read_features(feature_name=[sec_code, str( kwargs.get('inverval_mins'))])
+        ret_features = read_features(feature_name=[sec_code, str(kwargs.get('inverval_mins'))])
         init_a4 = kwargs.get('a4') or self._params[sec_code]['a4'] or 1.0
         init_b1 = kwargs.get('b1')
         train_rate = kwargs.get('train_rate') or 0.8
@@ -368,14 +377,15 @@ class MIModel(object):
                 ret_score, ret_param = self.train_models(sec_code=sec_code, model_name=model_name, features=features,
                                                          ajusted_mi=ajusted_mi,
                                                          istar_params='all',
-                                                         a4=a4, b1=b1, file_name=file_name,inverval_mins=inverval_mins)
+                                                         a4=a4, b1=b1, file_name=file_name, inverval_mins=inverval_mins)
                 if ret_score.get('r2_score') > max_score:
                     best_b1 = b1
                     best_a4 = a4
         logger.debug('Best b1:{0} and best a4:{1}'.format(best_b1, best_a4))
         ret_score, ret_param = self.train_models(sec_code=sec_code, model_name=model_name, features=features,
                                                  ajusted_mi=ajusted_mi, istar_params='a',
-                                                 a4=best_a4, b1=best_b1, file_name=file_name,inverval_mins=inverval_mins)
+                                                 a4=best_a4, b1=best_b1, file_name=file_name,
+                                                 inverval_mins=inverval_mins)
         ret_param.update({'b1': best_b1, 'a4': best_a4})
         logger.debug(
             'Done train_with_grid_search for sec_code:{0}, search_parms:{1}, model_name:{2}, features:{3}'.format(
@@ -389,7 +399,7 @@ class MIModel(object):
                 sec_code, model_name, features, opt_method, lb, ub))
         features = features or self.features
         target_idx = [idx for idx, val in enumerate(self.features) if val in features]
-        ret_features = read_features(feature_name=[sec_code, str( inverval_mins)])
+        ret_features = read_features(feature_name=[sec_code, str(inverval_mins)])
         train_X = []
         backup_features = copy.deepcopy(ret_features)
         for item in ret_features:
@@ -421,44 +431,3 @@ class MIModel(object):
         param_keys = ['a1', 'a2', 'a3', 'a4', 'b1']
         ret_params = dict(zip(param_keys, popt))
         return eval_model, ret_params
-
-    # def _train_with_ann(self, sec_code='', model_name='istar_opt', features=['LOG_SIGMA', 'LOG_Q_ADV'],
-    #                           file_name=''):
-    #     logger.info(
-    #         'Start train_with_grid_search for sec_code:{0}, model_name:{1}, features:{2}'.format(
-    #             sec_code, model_name, features))
-    #     features = features or self.features
-    #     target_idx = [idx for idx, val in enumerate(self.features) if val in features]
-    #     ret_features = read_features(feature_name='{0}'.format(sec_code))
-    #     train_X = []
-    #     backup_features = copy.deepcopy(ret_features)
-    #     for item in ret_features:
-    #         flag = 0
-    #         for sub_item in item:
-    #             if not ('nan' in sub_item):
-    #                 flag = 1
-    #         if flag == 0:
-    #             backup_features.remove(item)
-    #             continue
-    #         train_X.append([format_float(item[idx]) for idx in target_idx])
-    #
-    #     train_X = num_pipeline.fit_transform(train_X)
-    #     train_Y = [get_market_impact_label(format_float(item[-2]), format_float(item[-1])) for item in
-    #                backup_features]
-    #
-    #     model = Optimize_Model(model_name=model_name)
-    #     model.build_model()
-    #     model_path = 'models_{0}_{1}_{2}'.format(model_name, sec_code, get_hash_key(features))
-    #     tmp_Y = [0.0 if item != item else item for item in train_Y]
-    #     mean_y = sum(tmp_Y) / len(tmp_Y)
-    #     train_Y = [mean_y if item != item else item for item in train_Y]
-    #     ret = model.train_model(train_X, train_Y, lb=lb, up=ub, method=opt_method)
-    #     model.save_model(model_path)
-    #     popt, pcov = model.output_model()
-    #     y_predict = model.predict(train_X)
-    #     eval_model = model.eval_model(train_Y, y_predict, ['mse', 'r2_score'])
-    #     logger.debug(eval_model)
-    #     ret_params = {}
-    #     param_keys = ['a1', 'a2', 'a3', 'a4', 'b1']
-    #     ret_params = dict(zip(param_keys, popt))
-    #     return eval_model, ret_params

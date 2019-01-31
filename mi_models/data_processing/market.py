@@ -180,23 +180,6 @@ class Market(object):
             return {}
         return dict(zip(list(df1.index), ret))
 
-    # def get_ma_intraday_bs_volume(self, start_datetime='', end_datetime='', date_period=10):a=
-    #     df1 = self._intraday_cache[
-    #         (self._intraday_cache.TIME >= start_datetime) & (self._intraday_cache.TIME <= end_datetime)]
-    #     if df1.size == 0.0:
-    #         logger.error(
-    #             "Market data missing in get_ma_intraday_volume from {0} to {1}".format(start_datetime,
-    #                                                                                    end_datetime,
-    #                                                                                    ))
-    #         return {}
-    #     df1 = df1.groupby('DATE').agg({'VOLUME': 'sum'})
-    #     try:
-    #         ret = adjusted_sma(list(df1['VOLUME']), date_period)
-    #     except Exception as ex:
-    #         logger.debug('Ma intraday volume fail with error {0}'.format(ex))
-    #         return {}
-    #     return dict(zip(list(df1.index), ret))
-
     def get_ma_intraday_bs_volume(self, start_datetime='', end_datetime='', date_period=10):
         try:
             df1 = self._intraday_cache[
@@ -211,9 +194,15 @@ class Market(object):
             else:
                 df_buy = df1[df1['BS'] == 1].groupby('DATE').agg({'VOLUME': 'sum'})
                 df_sell = df1[df1['BS'] == 2].groupby('DATE').agg({'VOLUME': 'sum'})
-                df_bs = df_buy-df_sell
+                if df_buy.size == 0:
+                    df_bs = df_sell
+                elif df_sell.size == 0:
+                    df_bs = df_buy
+                else:
+                    df_bs = df_buy - df_sell
                 ret = adjusted_sma(list(df_bs['VOLUME']), date_period)
-                return dict(zip(list(df1.index), ret))
+
+                return dict(zip(list(df_bs.index), ret))
         except Exception as ex:
             logger.debug(
                 'Fail in get_intraday_bs_volume from {0} to {1} with error'.format(start_datetime, end_datetime, ex))
@@ -236,8 +225,6 @@ class Market(object):
         except Exception as ex:
             logger.debug(
                 'Fail in get_intraday_bs_volume from {0} to {1} with error'.format(start_datetime, end_datetime, ex))
-
-
 
     def get_eod_volume(self):
         vols = self._eod_cache['VOLUME']

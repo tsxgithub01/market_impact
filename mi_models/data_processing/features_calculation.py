@@ -117,6 +117,18 @@ def get_log_q_adv(row={}):
     return float(math.log1p(abs(q)) / adv - 1.0)
 
 
+def _resolve_ma(val, k):
+    if not isinstance(val, dict):
+        return
+    if k in val:
+        return val.get(k)
+    tmp = list(zip(val.keys(), val.values()))
+    tmp.sort(key=lambda x: x[0], reverse=False)
+    if tmp:
+        return tmp[-1][1]
+    return np.nan
+
+
 def get_source_features(inputs=[], mkt=None):
     if not inputs or not mkt:
         return []
@@ -127,18 +139,23 @@ def get_source_features(inputs=[], mkt=None):
         vol, price = np.nan, np.nan
     date = start_datetime.split(' ')[0]
     try:
-        vt = mkt.get_ma_intraday_volume(start_datetime.split(' ')[1], end_datetime.split(' ')[1]).get(date) or np.nan
+        vt_ret = mkt.get_ma_intraday_volume(start_datetime.split(' ')[1], end_datetime.split(' ')[1])
+        vt = _resolve_ma(vt_ret, date)
+        # vt = vt_ret.get(date) or np.nan
     except Exception as ex:
         logger.debug('Fail to get vt from {0} to {1}, with error:{2}'.format(start_datetime, end_datetime, ex))
         vt = np.nan
     try:
-        q = mkt.get_intraday_bs_volume(start_datetime.split(' ')[1], end_datetime.split(' ')[1]).get(date) or np.nan
+        q_ret = mkt.get_ma_intraday_bs_volume(start_datetime.split(' ')[1], end_datetime.split(' ')[1])
+        q = _resolve_ma(q_ret, date)/2
+        # q = q_ret.get(date) or np.nan
     except Exception as ex:
         logger.debug('Fail to get Q from {0} to {1} with error:{2}'.format(start_datetime, end_datetime, ex))
         q = np.nan
     try:
         adv_mapping = mkt.get_ma_volume()
-        adv = adv_mapping.get(date) or np.nan
+        adv = _resolve_ma(adv_mapping, date)
+        # adv = adv_mapping.get(date) or np.nan
     except Exception as ex:
         logger.debug('Fail to get adv for date {0} with error:{1}'.format(date, ex))
         adv = np.nan
@@ -259,6 +276,8 @@ def get_market_impact_features(features=[], sec_codes=[], sec_code_to_order_ids=
             logger.debug(
                 "Processsing {0} th mock order: {1} out of {2} features_calculation".format(cnt, total_len, inputs))
             curr_row = get_source_features(inputs, mkt)
+            if curr_row.get('Q') == np.nan:
+                print('check')
             logger.debug("source features returned before adjusted quantity:{0}".format(curr_row))
             if order_qty:
                 logger.debug('Order quantity is set as:{0}'.format(order_qty[0]))
@@ -272,6 +291,7 @@ def get_market_impact_features(features=[], sec_codes=[], sec_code_to_order_ids=
             if not flag:
                 continue
             curr_row = get_cal_features(curr_row, cal_features)
+            logger.debug('current_row is:{0}'.format(curr_row))
             logger.debug("calculate features returned :{0}".format(curr_row))
             start_time = curr_row.get('start_time')
             sub_path = start_time.split(' ')[0][:6]
@@ -297,6 +317,9 @@ def get_market_impact_features(features=[], sec_codes=[], sec_code_to_order_ids=
 def save_features(payload=[], path='', key_type=''):
     # feature_path = path
     base_dir, file_name = os.path.split(path)
+    sec_dir, sec = os.path.split(base_dir)
+    if not os.path.isdir(sec_dir):
+        os.mkdir(sec_dir)
     if not os.path.isdir(base_dir):
         logger.debug('Feature directory does not exist, create a new directory:{0}'.format(base_dir))
         os.mkdir(base_dir)
@@ -324,7 +347,7 @@ def read_features(feature_name=None):
     feature_path = os.path.join(get_parent_dir(), 'data', 'features')
     feature_name = [feature_name] if isinstance(feature_name, str) else feature_name
     for item in feature_name:
-        feature_path = os.path.join(feature_path,item)
+        feature_path = os.path.join(feature_path, item)
     # feature_path = os.path.join(get_parent_dir(), 'data', 'features', feature_name)
     logger.info("read features for sec_code:{0}".format(feature_name))
     files = list_files(abs_path=feature_path)
