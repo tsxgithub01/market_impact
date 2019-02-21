@@ -71,19 +71,13 @@ class Optimize_Model(Model):
 
     def save_model(self, model_name):
         model_path = os.path.join(get_parent_dir(), 'data', 'models', '{0}.json'.format(model_name))
-        # p =  '{0}/data/models/{1}.m'.format(config['constants']['root'], model_path)
-        # TODO remove hardcode
-        # model_path = 'E:/pycharm/algo_trading/quant_models/quant_models/data/models/{0}.json'.format(model_name)
         _payload = {'model_name': model_name, 'popt': self._popt.tolist(), 'pcov': self._pcov.tolist()}
         with open(model_path, 'w') as outfile:
             j_data = json.dumps(_payload)
             outfile.write(j_data)
 
     def load_model(self, model_name):
-        # TODO remove hardcode
         model_path = os.path.join(get_parent_dir(), 'data', 'models', '{0}.json'.format(model_name))
-        # # p = '{0}models/{1}.m'.format(config['constants']['root'], model_name)
-        # model_path = 'E:/pycharm/algo_trading/quant_models/quant_models/data/models/{0}.json'.format(model_name)
         with open(model_path) as infile:
             contents = infile.read()
             return json.loads(contents)

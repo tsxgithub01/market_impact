@@ -91,19 +91,3 @@ class TF_Reg_Model():
         return prediction
 
 
-if __name__ == '__main__':
-    # train and save model
-    x = np.random.random(size=(10000, 100))
-    y = np.random.random(size=(10000, 1))
-    acc = np.random.random(size=(10000, 1))
-    m = TF_Reg_Model()
-    m.build_model(100, 50)
-    # m.train_model(x, y, acc, n_epochs=10, model_name='testing_istar')
-    # m.save_model('testing_istar')
-
-    # load and predict
-    m.load_model('testing_istar')
-    test_x = np.random.random(size=(1, 100))
-    test_b = np.random.random(size=(1, 1))
-    pred_y = m.predict(test_x, test_b)
-    print(pred_y)
