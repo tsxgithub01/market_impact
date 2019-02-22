@@ -26,11 +26,10 @@ from ..utils.date_utils import get_all_month_start_end_dates
 from ..model_processing.pipeline import num_pipeline
 from ..model_processing.ml_reg_models import Ml_Reg_Model
 from ..model_processing.sci_optimize_models import Optimize_Model
-from ..utils.plot_utils import plot_2D
 
 config = get_config()
 
-logger = Logger('log.txt', 'DEBUG', __name__).get_log()
+logger = Logger('log.txt', 'INFO', __name__).get_log()
 
 
 class MIModel(object):
@@ -327,11 +326,6 @@ class MIModel(object):
             logger.debug(model._best_estimate)
         train_Y = np.array(train_Y)
         train_Y = np.nan_to_num(train_Y)
-        # tmp_Y = [0.0 if item != item else item for item in train_Y]
-        # # TODO to improved
-        # mean_y = sum(tmp_Y) / len(tmp_Y)
-        # train_Y = [mean_y if item != item else item for item in train_Y]
-        # n_train = int(len(train_Y) * train_sample)
 
         train_X, train_Y, val_X, val_Y = split_train_val_dataset(train_X, train_Y, train_rate)
         model.train_model(train_X, train_Y)
@@ -339,9 +333,6 @@ class MIModel(object):
         model_param = model.output_model()
         y_predict = model.predict(val_X)
         eval_model = model.eval_model(val_Y, y_predict, ['mse', 'r2_score'])
-        # import matplotlib.pyplot as plt
-        # plt.plot(range(len(train_Y)), train_Y, y_predict)
-        # plt.show()
         logger.debug(
             'results with train_sample:{0}, a4:{1}, b1:{2},ret:{3}'.format(train_rate, init_a4, init_b1, eval_model))
         ret_params = {}
@@ -427,7 +418,6 @@ class MIModel(object):
         y_predict = model.predict(train_X)
         eval_model = model.eval_model(train_Y, y_predict, ['mse', 'r2_score'])
         logger.debug(eval_model)
-        ret_params = {}
         param_keys = ['a1', 'a2', 'a3', 'a4', 'b1']
         ret_params = dict(zip(param_keys, popt))
         return eval_model, ret_params
