@@ -25,7 +25,6 @@ def _main(env='PROD'):
     mi = MIModel(db_config, file_name)
     train_sec_ids = load_json_file(os.path.join(get_parent_dir(), 'data', 'train_ids.json'))
     train_codes = [(item.split('.')[0], item.split('.')[1]) for item in train_sec_ids]
-    # train_codes = [('002782', 'XSHE')]
     results = []
 
     for sec_code, exchange in train_codes:
@@ -35,13 +34,12 @@ def _main(env='PROD'):
         for min, val in ret.items():
             score, mse = val
             results.append([sec_code, min, mse, score])
-    with open(
-            'mi_models/data/results/training_results1_linear_{0}_{1}_{2}'.format(train_codes[0], start_date, end_date),
-            'w') as outfile:
-        for item in results:
-            outfile.write(str(item))
-    istar_params = mi.load_model(file_name)
-    pprint.pprint(istar_params)
+        # with open(
+        #         'mi_models/data/results/training_results_linearnnls_{0}_{1}_{2}'.format(train_codes[0], start_date, end_date),
+        #         'w') as outfile:
+        #     for item in results:
+        #         outfile.write(str(item))
+    mi.load_model(file_name)
     for sec_code, exchange in train_codes:
         begin_time = '20180709 09:25:41'
         end_time = '20180709 14:53:13'

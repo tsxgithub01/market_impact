@@ -3,7 +3,7 @@ import unittest
 
 class MyTestCase(unittest.TestCase):
 
-    #TODO to be completed
+    # TODO to be completed
     def test_pipeline(self):
         from model_processing.pipeline import num_pipeline
         import numpy as np
@@ -23,7 +23,7 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(True, True)
 
     def test_utils(self):
-        self.assertEqual(True,True)
+        self.assertEqual(True, True)
 
 
 if __name__ == '__main__':
