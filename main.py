@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @time      : 2018/11/1 9:14
-# @author    : yuxiaoqi@cmschina.com.cn
+# @author    : yuxiaoqi
 # @file      : main.py
 
 from mi_models.api.mi_model import MIModel
