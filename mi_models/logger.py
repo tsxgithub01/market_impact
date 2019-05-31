@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @time    : 2018/9/10 17:15
-# @author  : huangyu10@cmschina.com.cn
+# @author  : huangyu
 # @file    : logger.py
 
 import logging
