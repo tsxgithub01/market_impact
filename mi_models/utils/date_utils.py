@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @time      : 2018/10/19 11:45
-# @author    : yuxiaoqi@cmschina.com.cn
+# @author    : yuxiaoqi
 # @file      : date_utils.py
 
 import datetime
