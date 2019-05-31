@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @time      : 2019/1/17 19:51
-# @author    : yuxiaoqi@cmschina.com.cn
+# @author    : yuxiaoqi
 # @file      : tf_models.py
 
 import os
