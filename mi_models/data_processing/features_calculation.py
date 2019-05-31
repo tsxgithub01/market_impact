@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @time      : 2018/10/18 13:36
-# @author    : yuxiaoqi@cmschina.com.cn
+# @author    : yuxiaoqi
 # @file      : feature_calculation.py
 
 import numpy as np
