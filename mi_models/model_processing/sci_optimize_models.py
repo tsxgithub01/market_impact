@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @time      : 2019/1/17 14:11
-# @author    : yuxiaoqi@cmschina.com.cn
+# @author    : yuxiaoqi
 # @file      : sci_optimize_models.py
 
 import os
