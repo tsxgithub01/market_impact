@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @time    : 2018/10/18 11:08
-# @author  : huangyu10@cmschina.com.cn
+# @author  : huangyu
 # @file    : MIModel.py
 
 import math
