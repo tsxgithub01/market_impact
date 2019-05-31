@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @time      : 2019/1/24 13:27
-# @author    : yuxiaoqi@cmschina.com.cn
+# @author    : yuxiaoqi
 # @file      : dataset.py
 
 import numpy as np
