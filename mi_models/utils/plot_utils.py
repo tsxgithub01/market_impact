@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @time    : 2018/9/10 17:15
-# @author  : huangyu10@cmschina.com.cn
+# @author  : huangyu10
 # @file    : plot_utils.py
 
 import matplotlib.pyplot as plt
