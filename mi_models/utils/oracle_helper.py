@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @time    : 2018/9/10 17:15
-# @author  : huangyu10
+# @author  : huangyu
 # @file    : oracle_helper.py
 
 import cx_Oracle
