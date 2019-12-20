@@ -5,8 +5,8 @@ import json
 import sys
 import hashlib
 import talib as ta
-
-from logger import Logger
+from ..utils.logger import Logger
+# from logger import Logger
 logger = Logger('log.txt', 'INFO', __name__).get_log()
 
 

@@ -47,6 +47,11 @@ learning_rate = 0.3
 optimizer = sgd
 
 [market_impact]
+all_features = LOG_SIGMA,LOG_Q_ADV,POV,SIGMA,ADV,Q,X,VT,T,Q_ADV,PCT,TURNOVERRATE,PE
+tf_dnn_features = Q,ADV,POV,SIGMA,T,VT,PCT,Q_ADV,TURNOVERRATE,PE
+nyu_opt_features = X,VT,SIGMA,T
+istar_opt_features = Q_ADV,POV,SIGMA
+acc_features = Q_ADV,PCT
 features = X,VOLUME_TIME,NYU_PERM,NYU_TMP,ADV,SIGMA,LOG_SIGMA,Q,VT,P0,VWAP,START_TIME,END_TIME
 alpha = 0.726
 beta = 0.511

@@ -7,12 +7,12 @@ import os
 import numpy as np
 from abc import abstractmethod
 from sklearn.externals import joblib
-from utils.utils import get_config
+from ..utils.utils import get_config
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.metrics import precision_score
 from sklearn.model_selection import GridSearchCV
-from logger import Logger
+from ..utils.logger import Logger
 from sklearn.linear_model.base import LinearRegression
 from sklearn.linear_model.base import _rescale_data
 from sklearn.utils.validation import check_X_y
@@ -22,12 +22,10 @@ from sklearn.externals.joblib.parallel import Parallel
 from sklearn.externals.joblib.parallel import delayed
 from scipy.optimize import nnls
 from scipy.optimize import lsq_linear
-# from quant_models.utils.utils import get_parent_dir
 from ..utils.utils import get_parent_dir
 
 
 logger = Logger('log.txt', 'INFO', __name__).get_log()
-
 config = get_config()
 
 
@@ -112,8 +110,6 @@ class Model(object):
                 self.model.coef_ = np.vstack(out[0] for out in outs)
                 self.model._residues = np.vstack(out[3] for out in outs)
         else:
-            # self.model.coef_, self.model.cost_, self.model.fun_, self.model.optimality_, self.model.active_mask_,
-            # self.model.nit_, self.model.status_, self.model.message_, self.model.success_\
             out = lsq_linear(X, y, bounds=(0, np.Inf))
             self.model.coef_ = out.x
             self.model.coef_ = self.model.coef_.T

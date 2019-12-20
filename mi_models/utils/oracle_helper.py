@@ -16,16 +16,19 @@ class OracleHelper(object):
                               mincached=int(params.get("mincached")),
                               maxcached=int(params.get("maxcached")),
                               blocking=True,
-                              threaded=True)
+                              threaded=True,
+                              encoding='UTF-8')
 
     def execute_query(self, sql):
         conn = self._pool.connection()
         cursor = conn.cursor()
+        print(sql)
         cursor.execute(sql)
         results = cursor.fetchall()
-        desc = cursor.description
+        _desc = cursor.description
         cursor.close()
         conn.close()
+        desc = [item[0] for item in _desc]
         return results, desc
 
     def execute_sql(self, sql):
@@ -35,4 +38,6 @@ class OracleHelper(object):
         conn.commit()
         cursor.close()
         conn.close()
+
+
 

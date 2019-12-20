@@ -4,7 +4,7 @@
 # @file      : ml_reg_models.py
 
 
-from utils.utils import get_config
+from ..utils.utils import get_config
 from sklearn import linear_model
 from ..model_processing.models import Model
 from sklearn.ensemble import GradientBoostingRegressor
@@ -21,8 +21,9 @@ from sklearn.svm import SVR
 config = get_config()
 
 
-class Ml_Reg_Model(Model):
+class MlRegModel(Model):
     def __init__(self, model_name=None):
+        super(MlRegModel, self).__init__(model_name)
         self.model_name = model_name
         self._best_estimate = {}
 
@@ -56,7 +57,7 @@ class Ml_Reg_Model(Model):
 
     def train_model(self, train_X=[], train_Y=[], **kwargs):
         sample_weights = kwargs.get('sample_weights')
-        if self.model_name == 'linear_nnls':
+        if self.model_name == 'istar':
             self.fit_linear_nnls(train_X, train_Y, sample_weight=sample_weights)
             scores = 0.0
         else:

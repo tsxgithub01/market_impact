@@ -4,18 +4,18 @@
 # @file      : date_utils.py
 
 import datetime
-from logger import Logger
-from utils.oracle_helper import OracleHelper
+from ..utils.logger import Logger
+from ..utils.oracle_helper import OracleHelper
 
 logger = Logger('log.txt', 'INFO', __name__).get_log()
 
 
 def get_dates_statics(start_date='', end_date=''):
-    config = {"user": "cust", "pwd": "admin123", "host": "172.253.32.132", "port": 1521, "dbname": "dbcenter",
-              "mincached": 0, "maxcached": 1}
+    config = {"user": "gfangm", "pwd": "Gfangm1023_cms2019", "host": "10.200.40.170", "dbname": "clouddb",
+                 "mincached": 1, "maxcached": 4, "port": 1521}
     db_obj = OracleHelper(config)
     sql_str = ('''select *
-              from md_trade_cal
+              from cust.md_trade_cal
               where EXCHANGE_CD in ('XSHE','XSHG') and CALENDAR_DATE>= TO_DATE({}, 'YYYYMMDD') and CALENDAR_DATE<= TO_DATE({},'YYYYMMDD')''').format(
         start_date, end_date)
     ret, desc = db_obj.execute_query(sql_str)

@@ -1,2 +1,2 @@
-model_checkpoint_path: "E:\\pycharm\\algo_trading\\mi_remote\\mi_models\\data\\models\\testing_istar"
-all_model_checkpoint_paths: "E:\\pycharm\\algo_trading\\mi_remote\\mi_models\\data\\models\\testing_istar"
+model_checkpoint_path: "E:\\pycharm\\mi_github\\mi_models\\data\\models\\test"
+all_model_checkpoint_paths: "E:\\pycharm\\mi_github\\mi_models\\data\\models\\test"

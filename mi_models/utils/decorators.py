@@ -4,7 +4,7 @@
 # @file      : decorators.py
 
 import time
-from ..logger import Logger
+from mi_models.utils.logger import Logger
 
 logger = Logger('log.txt', 'INFO', __name__).get_log()
 

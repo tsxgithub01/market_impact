@@ -7,7 +7,7 @@
 from datetime import date
 from collections import defaultdict
 from ..utils.utils import get_config
-from ..logger import Logger
+from ..utils.logger import Logger
 
 config = get_config()
 logger = Logger('log.txt', 'INFO', __name__).get_log()
@@ -21,7 +21,7 @@ class DataFetcher(object):
 
     def get_dates_statics(self, start_date='', end_date=''):
         sql_str = ('''select *
-                  from md_trade_cal
+                  from cust.md_trade_cal
                   where EXCHANGE_CD in ('XSHE','XSHG') and CALENDAR_DATE>= TO_DATE({}, 'YYYYMMDD') and CALENDAR_DATE<= TO_DATE({},'YYYYMMDD')''').format(
             start_date, end_date)
         ret, desc = self.db_obj.execute_query(sql_str)
@@ -29,21 +29,31 @@ class DataFetcher(object):
         return ret, cols
 
     def _get_sql_query(self, start_date=None, end_date=None, sec_codes=[], filter='',
-                       orderby='', groupby='', table_name='EQUITY_PRICEMIN', exchangecd='XSHG'):
+                       orderby='', groupby='', table_name='CUST.EQUITY_PRICEMIN', exchangecd='XSHG'):
         start_date = start_date or 20120105
         end_date = end_date or date.today().strftime('%Y%m%d')
         if str(start_date)[:-2] != str(end_date)[:-2]:
-            raise ValueError('Should pass the date in the same month')
-        table_name = '{0}{1}'.format(table_name, str(start_date)[:-2])
-        sqlstr = ('''
-                  select *
-                  from {}
-                  where EXCHANGECD in ('XSHE','XSHG') and DATADATE>='{}' and DATADATE<='{}'
-                  ''').format(table_name, start_date, end_date)
+            logger.warn('Should pass the date in the same month')
+        if table_name == 'CUST.EQUITY_PRICEMIN':
+            _table_name = '{0}{1}'.format(table_name,
+                                          str(start_date)[:-2]) if table_name == 'CUST.EQUITY_PRICEMIN' else table_name
+            sqlstr = ('''
+                    select *
+                      from {}
+                      where EXCHANGECD in ('XSHE','XSHG') and DATADATE>='{}' and DATADATE<='{}'
+                      ''').format(_table_name, start_date, end_date)
+            ticker_key = 'TICKER'
+        elif table_name == 'CUST.MKT_EQUD':
+            sqlstr = ('''
+                      select *
+                      from CUST.MKT_EQUD
+                      where EXCHANGE_CD in ('XSHE','XSHG') and TRADE_DATE>=TO_DATE('{}','YYYYMMDD') and TRADE_DATE<=TO_DATE('{}','YYYYMMDD')
+                      ''').format(start_date, end_date)
+            ticker_key = 'TICKER_SYMBOL'
         if sec_codes and len(sec_codes) > 1:
-            sqlstr = '{0} and TICKER in ({1})'.format(sqlstr, ','.join(sec_codes))
+            sqlstr = '{0} and {1} in ({2})'.format(sqlstr, ticker_key, ','.join(sec_codes))
         elif sec_codes and len(sec_codes) == 1:
-            sqlstr = '{0} and TICKER = {1}'.format(sqlstr, sec_codes[0])
+            sqlstr = '{0} and {1} = {2}'.format(sqlstr, ticker_key, sec_codes[0])
         if filter:
             sqlstr = '{0} and {1}'.format(sqlstr, filter)
         if orderby:
@@ -53,7 +63,7 @@ class DataFetcher(object):
         return sqlstr
 
     def get_market_mins(self, startdate='', enddate='', sec_codes=[], filter='',
-                        orderby='', groupby='', table_name='EQUITY_PRICEMIN'):
+                        orderby='', groupby='', table_name='CUST.EQUITY_PRICEMIN'):
         '''
         Fetch the minute level data from tonglian in oracle
         Return the rows of values: ['DATADATE', 'TICKER', 'EXCHANGECD', 'SHORTNM', 'SECOFFSET', 'BARTIME', 'CLOSEPRICE',
@@ -92,3 +102,13 @@ class DataFetcher(object):
             rows.extend(tmp_rows)
         logger.info("Done query data in get_market_mins for query_date:{0}".format(len(grouped_dates)))
         return rows, columns
+
+    def get_market_daily(self, startdate='', enddate='', sec_codes=[], filter='',
+                         orderby='', groupby='', table_name='CUST.MKT_EQUD'):
+        if not self.db_obj:
+            logger.error("Fail in get_market_mins for empty db_obj")
+        sqlstr = self._get_sql_query(startdate, enddate, sec_codes, filter, orderby,
+                                     groupby, table_name)
+        logger.debug('query sql string is:{0}'.format(sqlstr))
+        rows, desc = self.db_obj.execute_query(sqlstr)
+        return rows, desc

@@ -17,7 +17,7 @@ from ..utils.utils import get_parent_dir
 from ..utils.decorators import timeit
 from ..data_processing.market import Market
 from ..data_processing.order import Order
-from ..logger import Logger
+from ..utils.logger import Logger
 
 numerical_default = 0.0
 config = get_config()
@@ -89,7 +89,7 @@ def get_market_impact_label(start_price=np.nan, avg_price=np.nan):
     return float(avg_price - start_price) / start_price if start_price else np.nan
 
 
-def get_istart_label(start_price=np.nan, avg_price=np.nan, pov=np.nan, sec_code='', b1=None, a4=None, file_name=''):
+def get_istar_label(start_price=np.nan, avg_price=np.nan, pov=np.nan, sec_code='', b1=None, a4=None, file_name=''):
     if start_price == np.nan or avg_price == np.nan or pov == np.nan:
         logger.error('Fail to generate label, Price value nan')
         return np.nan
@@ -147,7 +147,7 @@ def get_source_features(inputs=[], mkt=None):
         vt = np.nan
     try:
         q_ret = mkt.get_ma_intraday_bs_volume(start_datetime.split(' ')[1], end_datetime.split(' ')[1])
-        q = _resolve_ma(q_ret, date)/2
+        q = _resolve_ma(q_ret, date) / 2
         # q = q_ret.get(date) or np.nan
     except Exception as ex:
         logger.debug('Fail to get Q from {0} to {1} with error:{2}'.format(start_datetime, end_datetime, ex))
@@ -178,7 +178,32 @@ def get_source_features(inputs=[], mkt=None):
         logger.debug(
             'Fail to get start and end price from {0} to {1} with error:{2}'.format(start_datetime, end_datetime, ex))
         start_price, end_price = np.nan, np.nan
-    return {'ADV': adv, 'SIGMA': sigma, 'X': vol, 'Q': q / 2, 'VWAP': avg_price, 'P0': start_price, 'VT': vt,
+
+    try:
+        pct = mkt.get_intraday_chg_pct(start_datetime, end_datetime)
+    except Exception as ex:
+        logger.debug(
+            'Fail to get start and end price from {0} to {1} with error:{2}'.format(start_datetime, end_datetime, ex))
+        pct = np.nan
+    try:
+        turnover_rate = mkt.get_daily_turnover_rate(date, end_datetime.split(' ')[0]).get(date)
+    except Exception as ex:
+        logger.debug(
+            'Fail to get turnover rate from {0} to {1} with error:{2}'.format(start_datetime, end_datetime, ex))
+        turnover_rate = np.nan
+    try:
+        logger.debug(
+            "Query mkt daily to calculate pe in calculating source features with start_date, end_date".format(date,
+                                                                                                              end_datetime.split(
+                                                                                                                  ' ')))
+        pe = mkt.get_daily_pe(date, end_datetime.split(' ')[0]).get(date)
+    except Exception as ex:
+        logger.debug(
+            'Fail to get start and end price from {0} to {1} with error:{2}'.format(start_datetime, end_datetime, ex))
+        pe = np.nan
+    x = abs(q) if vol != vol else vol
+    return {'ADV': adv, 'SIGMA': sigma, 'X': x, 'Q': q / 2, 'VWAP': avg_price, 'P0': start_price, 'VT': vt, 'PCT': pct,
+            'TURNOVERRATE': turnover_rate, 'PE': pe,
             'start_time': start_datetime, 'end_time': end_datetime}
 
 
@@ -191,6 +216,7 @@ def get_cal_features(row={}, features=[]):
         'pov': lambda val: float(val.get('Q')) / val.get('VT'),
         'volume_time': lambda val: float(val.get('VT')) / val.get('ADV'),
         'q_adv': lambda val: float(abs(val.get('Q')) / val.get('ADV')),
+        't': lambda val: float(val.get('VT')) / val.get('ADV'),
     }
     for f in features:
         try:
@@ -224,7 +250,6 @@ def get_market_impact_features(features=[], sec_codes=[], sec_code_to_order_ids=
                                trade_schedules=[], exchange='XSHG', db_obj=None, order_price=[]):
     features_by_sec_code = {}
     features = features or config['market_impact']['features'].split(',')
-    # TODO double check
     if 'LOG_Q_ADV' in features:
         filtered = True
     else:

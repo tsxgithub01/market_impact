@@ -12,7 +12,7 @@ from ..utils.utils import get_config
 from ..utils.utils import adjusted_sma
 from ..data_processing.oracle_data_fetcher import DataFetcher
 import pandas as pd
-from ..logger import Logger
+from mi_models.utils.logger import Logger
 
 config = get_config()
 logger = Logger('log.txt', 'INFO', __name__).get_log()
@@ -75,10 +75,10 @@ class Market(object):
         self._intraday_cache = pd.DataFrame(rows, columns=colume_name)
         self._intraday_cache['DATE'] = [item.split(' ')[0] for item in self._intraday_cache['DATETIME']]
         self._intraday_cache['TIME'] = [item.split(' ')[1] for item in self._intraday_cache['DATETIME']]
-        self._eod_cache = self._intraday_cache.groupby('DATE').agg(
-            {'VOLUME': 'sum', 'CLOSEPRICE': 'last', 'OPENPRICE': 'first'})
-        self._eod_cache = self._intraday_cache.sort_values(by=['DATETIME']).groupby('DATE').agg(
-            {'VOLUME': 'sum', 'CLOSEPRICE': 'last', 'OPENPRICE': 'first'})
+        # self._eod_cache = self._intraday_cache.groupby('DATE').agg(
+        #     {'VOLUME': 'sum', 'CLOSEPRICE': 'last', 'OPENPRICE': 'first'})
+        # self._eod_cache = self._intraday_cache.sort_values(by=['DATETIME']).groupby('DATE').agg(
+        #     {'VOLUME': 'sum', 'CLOSEPRICE': 'last', 'OPENPRICE': 'first'})
 
         self._intraday_cache = self._intraday_cache.sort_values(by=['DATETIME']).drop_duplicates()
         BS_TAGS = []
@@ -99,10 +99,16 @@ class Market(object):
                                                                                      start_date,
                                                                                      end_date))
 
+        rows, cols = self._data_fetcher.get_market_daily(startdate=start_date, enddate=end_date,
+                                                         sec_codes=[self._sec_code])
+        self._trading_dates = [item[4].strftime('%Y%m%d') for item in rows]
+        self._eod_cache = pd.DataFrame(rows, columns=cols)
+        self._eod_cache.index = self._trading_dates
+
     def get_ma_volume(self, date_period=10):
         ret = {}
         try:
-            ret = adjusted_sma(list(self._eod_cache['VOLUME']), date_period)
+            ret = adjusted_sma(list(self._eod_cache['TURNOVER_VOL']), date_period)
         except Exception as ex:
             logger.debug('Fail in get_ma_volume for date_period:{0} with error {1}'.format(date_period, ex))
             return ret
@@ -119,7 +125,9 @@ class Market(object):
         return self._daily_log_return
 
     def get_daily_sigma(self, date_period=30, date=''):
-        log_ret = self._daily_log_return or self.get_daily_log_returns()
+        _return = list(self._eod_cache['CLOSE_PRICE'] / self._eod_cache['PRE_CLOSE_PRICE'])
+        _log_returns = [math.log(item) for item in _return]
+        log_ret = dict(zip(list(self._eod_cache.index), _log_returns))
         tmp = []
         for d, v in log_ret.items():
             if d <= date:
@@ -127,10 +135,8 @@ class Market(object):
             else:
                 break
         ret = tmp[-date_period:]
-        avg_ret = sum(ret) / len(ret)
-        ret[0] = avg_ret  # fill the star of the period return of the avg log return
-        return math.sqrt(reduce(lambda x, y: x + math.pow((x - avg_ret), 2), ret) / (len(ret) - 1)) if len(
-            ret) > 1 else ret[0]
+        _ret = np.array(ret).std()
+        return _ret
 
     def get_sigma(self, start_time='', end_time='', adjusted=False):
         idx = np.where(self._intraday_cache.DATETIME >= start_time)
@@ -347,3 +353,30 @@ class Market(object):
                 else:
                     min_delta += 1
         return 0.0
+
+    def get_intraday_chg_pct(self, start_datetime='', end_datetime=''):
+        try:
+            df1 = self._intraday_cache[
+                (self._intraday_cache.DATETIME >= start_datetime) & (self._intraday_cache.DATETIME <= end_datetime)]
+            if df1.size == 0.0:
+                logger.error(
+                    "Market data missing in get_intraday_bs_volume from {0} to {1} ".format(
+                        start_datetime,
+                        end_datetime,
+                    ))
+                return np.nan
+            else:
+                return sum(df1['PCT']) / df1.size
+        except Exception as ex:
+            logger.debug(
+                'Fail in get_intraday_bs_volume from {0} to {1} with error'.format(start_datetime, end_datetime, ex))
+
+    def get_daily_turnover_rate(self):
+        turnover_rate = self._eod_cache['TURNOVER_RATE']
+        dates = list(self._eod_cache.index)
+        return dict(zip(dates, turnover_rate))
+
+    def get_daily_pe(self):
+        pe = self._eod_cache['PE']
+        dates = list(self._eod_cache.index)
+        return dict(zip(dates, pe))

@@ -3,11 +3,13 @@
 # @author    : yuxiaoqi
 # @file      : preprocessing.py
 
-import datetime
+import numpy as np
 from collections import defaultdict
+from sklearn.preprocessing import Imputer
+from sklearn.pipeline import Pipeline
 from ..utils.utils import get_config
 from ..utils.date_utils import datetime_delta
-from ..logger import Logger
+from ..utils.logger import Logger
 
 logger = Logger('log.txt', 'INFO', __name__).get_log()
 config = get_config()
@@ -94,14 +96,22 @@ def mock_datetimes(dates=[], interval_mins=5, mkt=None, filtered=True):
     return ret
 
 
-def pre_cache_market_data(startdate=None, enddate=None, sec_codes=[], exchangecd='XSHG'):
-    from core.src.data_processing.sqlite_opt import insert_rows
-    from core.src.data_processing.oracle_db_opt import fetch_data
-    def _format_datetime(val):
-        return datetime.datetime.strftime(datetime.datetime.strptime(val, '%Y%m%d %H:%M'), '%Y%m%d %H:%M:%S')
+def win_and_std(arr=None):
+    mean, std = np.array(arr).mean(), np.array(arr).std()
 
-    rows, cols = fetch_data(startdate=startdate, enddate=enddate, sec_codes=sec_codes)
-    inesrt_values = [(_format_datetime('{0} {1}'.format(item[0], item[5])), item[1], item[2], item[6], item[7],
-                      item[8], item[9], item[10], item[11], item[12]) for item in rows if item[2] == exchangecd]
-    insert_rows('MarketMin', 'DATETIME,TICKER,EXCHANGECD,CLOSEPRICE,OPENPRICE,HIGHPRICE,LOWPRICE,VOLUME,VALUE,VWAP',
-                inesrt_values)
+    ret = arr if std == 0 else [(item - mean) / std for item in arr]
+    return ret
+
+
+def feature_preprocessing(arr=None):
+    _input_pip = Pipeline([
+        ('imputer', Imputer(missing_values='NaN', strategy='mean', axis=1)),
+    ])
+    try:
+        arr = _input_pip.fit_transform(arr)
+    except Exception as ex:
+        print('fail to apply the imputer with error:{0}'.format(ex))
+    arr = arr.transpose()
+    for idx, row in enumerate(arr):
+        arr[idx] = win_and_std(row)
+    return arr.transpose()

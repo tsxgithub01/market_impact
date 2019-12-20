@@ -6,16 +6,17 @@
 import os
 import json
 from ..model_processing.models import Model
-from utils.utils import get_config
-from utils.utils import get_parent_dir
+from ..utils.utils import get_config
+from ..utils.utils import get_parent_dir
 from scipy.optimize import curve_fit
 import numpy as np
 
 config = get_config()
 
 
-class Optimize_Model(Model):
+class OptimizeModel(Model):
     def __init__(self, model_name='istar_opt'):
+        super(OptimizeModel, self).__init__(model_name)
         self.model_name = model_name
         self._popt = None
         self._pcov = None
@@ -51,7 +52,7 @@ class Optimize_Model(Model):
         :param kwargs:
         :return:
         '''
-        lb = kwargs.get('lb') if 'lb' in kwargs else  -np.inf
+        lb = kwargs.get('lb') if 'lb' in kwargs else -np.inf
         up = kwargs.get('up') if 'ub' in kwargs else np.inf
         method = kwargs.get('method') or 'trf'
         popt, pcov = curve_fit(self._istar_cal, train_X, train_Y, check_finite=kwargs.get('check_finite'),
@@ -84,9 +85,8 @@ class Optimize_Model(Model):
 
 
 if __name__ == '__main__':
-    m = Optimize_Model()
+    m = OptimizeModel()
     import numpy as np
-
     x_data = np.random.random(size=(10, 4))
     y_data = m._istar_cal(x_data, 0.5, 0.5, 0.5, 0.5, 0.8)
     m.train_model(x_data, y_data, lb=0.0, up=np.inf, method='trf')
